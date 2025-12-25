@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangeEvent, DragEvent, ReactNode } from "react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type ToolId = "crop" | "title" | null;
 
@@ -9,14 +9,13 @@ type TitlePreset = "medium" | "center" | "overlay";
 
 type DownloadFormat = "png" | "jpeg";
 
-type EditorSnapshot = {
-  title: string;
-  titlePreset: TitlePreset;
-  titlePosition: NormalizedPoint;
-  cropRect: NormalizedRect | null;
-  downloadName: string;
-  downloadFormat: DownloadFormat;
-};
+type TitleSizeLevel = 0 | 1 | 2;
+
+type TitleWeight = "regular" | "bold";
+
+type TitleColor = "white" | "black" | "accent";
+
+type TitleAlign = "left" | "center" | "right";
 
 type NormalizedPoint = {
   x: number;
@@ -29,6 +28,27 @@ type NormalizedRect = {
   width: number;
   height: number;
 };
+
+type EditorSnapshot = {
+  title: string;
+  titlePreset: TitlePreset;
+  titlePosition: NormalizedPoint;
+  cropRect: NormalizedRect | null;
+  downloadName: string;
+  downloadFormat: DownloadFormat;
+  titleSizeLevel: TitleSizeLevel;
+  titleWeight: TitleWeight;
+  titleColor: TitleColor;
+  titleAlign: TitleAlign;
+};
+
+type PersistedSession = {
+  imageDataUrl: string | null;
+  originalFileName: string | null;
+  snapshot: EditorSnapshot | null;
+};
+
+const PERSIST_KEY = "img-ed/session-v1";
 
 type ToolButtonProps = {
   id: ToolId;
@@ -78,6 +98,10 @@ export default function Home() {
   const [title, setTitle] = useState("");
   const [activeTool, setActiveTool] = useState<ToolId>(null);
   const [titlePreset, setTitlePreset] = useState<TitlePreset>("medium");
+  const [titleSizeLevel, setTitleSizeLevel] = useState<TitleSizeLevel>(1);
+  const [titleWeight, setTitleWeight] = useState<TitleWeight>("bold");
+  const [titleColor, setTitleColor] = useState<TitleColor>("white");
+  const [titleAlign, setTitleAlign] = useState<TitleAlign>("center");
   const [titlePosition, setTitlePosition] = useState<NormalizedPoint>({
     x: 0.5,
     y: 0.82,
@@ -89,6 +113,8 @@ export default function Home() {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
   const [isDraggingFile, setIsDraggingFile] = useState(false);
+  const [hasHydratedSession, setHasHydratedSession] = useState(false);
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
 
   const previewRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -100,6 +126,36 @@ export default function Home() {
   const dragStartTitleRef = useRef<NormalizedPoint | null>(null);
   const dragStartCropRef = useRef<NormalizedRect | null>(null);
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    try {
+      const raw = window.localStorage.getItem(PERSIST_KEY);
+      if (!raw) {
+        setHasHydratedSession(true);
+        return;
+      }
+      const data = JSON.parse(raw) as PersistedSession;
+      if (data.imageDataUrl) {
+        setImageUrl(data.imageDataUrl);
+      }
+      if (data.originalFileName) {
+        setOriginalFileName(data.originalFileName);
+      }
+      if (data.snapshot) {
+        applySnapshot(data.snapshot);
+        setLastSavedSnapshot(data.snapshot);
+      }
+      setHistory([]);
+      setHasUnsavedChanges(false);
+      setBannerMessage(null);
+    } catch {
+    } finally {
+      setHasHydratedSession(true);
+    }
+  }, []);
+
   function createSnapshot(): EditorSnapshot {
     return {
       title,
@@ -108,6 +164,10 @@ export default function Home() {
       cropRect,
       downloadName,
       downloadFormat,
+      titleSizeLevel,
+      titleWeight,
+      titleColor,
+      titleAlign,
     };
   }
 
@@ -118,6 +178,10 @@ export default function Home() {
     setCropRect(snapshot.cropRect);
     setDownloadName(snapshot.downloadName);
     setDownloadFormat(snapshot.downloadFormat);
+    setTitleSizeLevel(snapshot.titleSizeLevel);
+    setTitleWeight(snapshot.titleWeight);
+    setTitleColor(snapshot.titleColor);
+    setTitleAlign(snapshot.titleAlign);
   }
 
   function pushHistory() {
@@ -205,6 +269,38 @@ export default function Home() {
     return name.slice(0, lastDot);
   }
 
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    if (!hasHydratedSession) {
+      return;
+    }
+    const payload: PersistedSession = {
+      imageDataUrl: imageUrl,
+      originalFileName,
+      snapshot: imageUrl ? createSnapshot() : null,
+    };
+    try {
+      window.localStorage.setItem(PERSIST_KEY, JSON.stringify(payload));
+    } catch {
+    }
+  }, [
+    hasHydratedSession,
+    imageUrl,
+    originalFileName,
+    title,
+    titlePreset,
+    titlePosition,
+    cropRect,
+    downloadName,
+    downloadFormat,
+    titleSizeLevel,
+    titleWeight,
+    titleColor,
+    titleAlign,
+  ]);
+
   function loadFile(file: File | null | undefined) {
     if (!file) {
       setImageUrl(null);
@@ -224,15 +320,49 @@ export default function Home() {
     setLastSavedSnapshot(null);
     setHasUnsavedChanges(false);
     setBannerMessage(null);
-    const url = URL.createObjectURL(file);
-    setImageUrl(url);
-    setOriginalFileName(file.name);
-    setDownloadName(baseNameFromFileName(file.name));
-    setCropRect(null);
-    setTitlePosition({
-      x: 0.5,
-      y: 0.82,
-    });
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        return;
+      }
+      setImageUrl(reader.result);
+      setOriginalFileName(file.name);
+      setDownloadName(baseNameFromFileName(file.name));
+      setCropRect(null);
+      setTitlePosition({
+        x: 0.5,
+        y: 0.82,
+      });
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleRequestReset() {
+    if (
+      !imageUrl &&
+      !title &&
+      !cropRect &&
+      !downloadName &&
+      !history.length
+    ) {
+      return;
+    }
+    setIsResetDialogOpen(true);
+  }
+
+  function handleConfirmReset() {
+    setIsResetDialogOpen(false);
+    loadFile(null);
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.removeItem(PERSIST_KEY);
+      } catch {
+      }
+    }
+  }
+
+  function handleCancelReset() {
+    setIsResetDialogOpen(false);
   }
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -253,7 +383,7 @@ export default function Home() {
     setDownloadFormat(format);
   }
 
-  function handleTitleChange(event: ChangeEvent<HTMLInputElement>) {
+  function handleTitleChange(event: ChangeEvent<HTMLTextAreaElement>) {
     pushHistory();
     setTitle(event.target.value);
   }
@@ -264,6 +394,38 @@ export default function Home() {
     }
     pushHistory();
     setTitlePreset(next);
+  }
+
+  function handleTitleSizeLevelChange(level: TitleSizeLevel) {
+    if (level === titleSizeLevel) {
+      return;
+    }
+    pushHistory();
+    setTitleSizeLevel(level);
+  }
+
+  function handleTitleWeightChange(weight: TitleWeight) {
+    if (weight === titleWeight) {
+      return;
+    }
+    pushHistory();
+    setTitleWeight(weight);
+  }
+
+  function handleTitleColorChange(color: TitleColor) {
+    if (color === titleColor) {
+      return;
+    }
+    pushHistory();
+    setTitleColor(color);
+  }
+
+  function handleTitleAlignChange(align: TitleAlign) {
+    if (align === titleAlign) {
+      return;
+    }
+    pushHistory();
+    setTitleAlign(align);
   }
 
   function handleTitlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
@@ -529,30 +691,51 @@ export default function Home() {
     const trimmedTitle = title.trim();
 
     if (trimmedTitle) {
-      const base = sourceWidth;
-      let fontSize = Math.max(16, Math.round(base * 0.045));
+      const base = Math.min(sourceWidth, sourceHeight);
+      let fontSize = Math.max(14, Math.round(base * 0.018));
 
-      if (titlePreset === "center") {
-        fontSize = Math.round(fontSize * 1.15);
-      } else if (titlePreset === "overlay") {
-        fontSize = Math.round(fontSize * 1.05);
+      const presetMultiplier =
+        titlePreset === "center"
+          ? 1.1
+          : titlePreset === "overlay"
+          ? 1.05
+          : 1;
+
+      const sizeMultiplier =
+        titleSizeLevel === 0 ? 0.9 : titleSizeLevel === 2 ? 1.15 : 1;
+
+      fontSize = Math.round(fontSize * presetMultiplier * sizeMultiplier);
+
+      const verticalPadding = Math.max(8, Math.round(fontSize * 0.7));
+      const horizontalPadding = Math.max(16, Math.round(fontSize * 1.8));
+
+      const fontWeightValue = titleWeight === "bold" ? 600 : 400;
+      context.font = `${fontWeightValue} ${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
+      context.textBaseline = "middle";
+
+      if (titleAlign === "left") {
+        context.textAlign = "left";
+      } else if (titleAlign === "right") {
+        context.textAlign = "right";
+      } else {
+        context.textAlign = "center";
       }
 
-      const verticalPadding = Math.max(8, Math.round(base * 0.016));
-      const horizontalPadding = Math.max(16, Math.round(base * 0.04));
+      const lines = trimmedTitle.split(/\r?\n/);
+      const lineHeight = Math.round(fontSize * 1.3);
 
-      context.font = `${fontSize}px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif`;
-      context.textBaseline = "middle";
-      context.textAlign = "center";
+      let maxLineWidth = 0;
+      for (const line of lines) {
+        const metrics = context.measureText(line);
+        if (metrics.width > maxLineWidth) {
+          maxLineWidth = metrics.width;
+        }
+      }
 
-      const metrics = context.measureText(trimmedTitle);
-      const textWidth = metrics.width;
-      const textHeight =
-        (metrics.actualBoundingBoxAscent || fontSize * 0.8) +
-        (metrics.actualBoundingBoxDescent || fontSize * 0.2);
+      const totalTextHeight = lineHeight * lines.length;
 
-      const boxWidth = textWidth + horizontalPadding * 2;
-      const boxHeight = textHeight + verticalPadding * 2;
+      const boxWidth = maxLineWidth + horizontalPadding * 2;
+      const boxHeight = totalTextHeight + verticalPadding * 2;
 
       let centerX = clamp(titlePosition.x, 0.05, 0.95);
       let centerY = clamp(titlePosition.y, 0.05, 0.95);
@@ -592,14 +775,26 @@ export default function Home() {
       const boxY = textY - boxHeight / 2;
 
       if (titlePreset === "overlay") {
-        context.fillStyle = "rgba(15, 23, 42, 0.95)";
+        context.fillStyle = "rgba(24, 24, 27, 0.9)";
       } else {
-        context.fillStyle = "rgba(0, 0, 0, 0.7)";
+        context.fillStyle = "rgba(0, 0, 0, 0.75)";
       }
       context.fillRect(boxX, boxY, boxWidth, boxHeight);
 
-      context.fillStyle = "#ffffff";
-      context.fillText(trimmedTitle, textX, textY);
+      let textColor = "#ffffff";
+      if (titleColor === "black") {
+        textColor = "#020617";
+      } else if (titleColor === "accent") {
+        textColor = "#22c55e";
+      }
+      context.fillStyle = textColor;
+
+      const firstLineY =
+        textY - totalTextHeight / 2 + lineHeight * 0.5;
+      lines.forEach((line, index) => {
+        const lineY = firstLineY + index * lineHeight;
+        context.fillText(line, textX, lineY);
+      });
     }
 
     const baseFromOriginal = originalFileName
@@ -690,6 +885,22 @@ export default function Home() {
           </div>
 
           <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end sm:gap-3">
+            <button
+              type="button"
+              onClick={handleRequestReset}
+              disabled={
+                !imageUrl &&
+                !title &&
+                !cropRect &&
+                !downloadName &&
+                !history.length
+              }
+              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-300 shadow-sm shadow-black/30 transition hover:border-red-500/70 hover:bg-red-500/10 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <span className="text-[11px]">✕</span>
+              <span>Reset</span>
+            </button>
+
             <label className="relative inline-flex cursor-pointer items-center overflow-hidden rounded-lg border border-zinc-700/80 bg-zinc-900/80 px-3 py-1.5 text-xs font-medium text-zinc-200 shadow-sm shadow-black/30 transition hover:border-zinc-500 hover:bg-zinc-900">
               <span className="mr-2 flex h-5 w-5 items-center justify-center rounded-md bg-zinc-800 text-[11px] text-zinc-100">
                 ↑
@@ -781,7 +992,13 @@ export default function Home() {
                     >
                       <div
                         className={[
-                          "inline-flex max-w-xl items-center justify-center rounded-full backdrop-blur shadow-[0_6px_18px_rgba(0,0,0,0.6)]",
+                          "inline-flex max-w-xl rounded-2xl backdrop-blur shadow-[0_6px_18px_rgba(0,0,0,0.6)]",
+                          titleAlign === "left" &&
+                            "items-start justify-start text-left",
+                          titleAlign === "right" &&
+                            "items-end justify-end text-right",
+                          titleAlign === "center" &&
+                            "items-center justify-center text-center",
                           titlePreset === "medium" &&
                             "bg-black/70 px-6 py-2 text-sm",
                           titlePreset === "center" &&
@@ -792,7 +1009,26 @@ export default function Home() {
                           .filter(Boolean)
                           .join(" ")}
                       >
-                        <span className="truncate">{title}</span>
+                        <span
+                          className="block max-w-[20rem] whitespace-pre-line"
+                          style={{
+                            fontWeight: titleWeight === "bold" ? 600 : 400,
+                            fontSize:
+                              titleSizeLevel === 0
+                                ? "0.9rem"
+                                : titleSizeLevel === 2
+                                ? "1.1rem"
+                                : "1rem",
+                            color:
+                              titleColor === "black"
+                                ? "#020617"
+                                : titleColor === "accent"
+                                ? "#22c55e"
+                                : "#f9fafb",
+                          }}
+                        >
+                          {title}
+                        </span>
                       </div>
                     </div>
                   )}
@@ -888,11 +1124,11 @@ export default function Home() {
                   <p className="text-xs font-medium text-zinc-300">
                     Title text
                   </p>
-                  <input
-                    type="text"
+                  <textarea
                     value={title}
                     onChange={handleTitleChange}
-                    placeholder="Add a caption or headline"
+                    placeholder="Add a caption or headline (use line breaks if needed)"
+                    rows={3}
                     className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-50 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-zinc-950"
                   />
                 </div>
@@ -926,14 +1162,146 @@ export default function Home() {
                   )}
                 </div>
 
-                <div className="space-y-1.5 text-[11px] text-zinc-400">
-                  <p className="text-xs font-medium text-zinc-300">
-                    Hints
-                  </p>
-                  <p>
-                    Keep titles short and clear. They will appear as an overlay
-                    near the bottom of your image.
-                  </p>
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-zinc-300">
+                      Font size
+                    </p>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        min={0}
+                        max={2}
+                        step={1}
+                        value={titleSizeLevel}
+                        onChange={(event) =>
+                          handleTitleSizeLevelChange(
+                            Number(event.target.value) as TitleSizeLevel,
+                          )
+                        }
+                        className="flex-1 accent-zinc-100"
+                      />
+                      <span className="w-12 text-right text-[11px] text-zinc-400">
+                        {titleSizeLevel === 0
+                          ? "Small"
+                          : titleSizeLevel === 2
+                          ? "Large"
+                          : "Medium"}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    {(["regular", "bold"] as TitleWeight[]).map((weight) => {
+                      const isActive = titleWeight === weight;
+                      const label = weight === "bold" ? "Bold" : "Regular";
+                      return (
+                        <button
+                          key={weight}
+                          type="button"
+                          onClick={() => handleTitleWeightChange(weight)}
+                          className={[
+                            "rounded-lg border px-2 py-1.5 text-center transition",
+                            isActive
+                              ? "border-zinc-100 bg-zinc-100 text-zinc-900"
+                              : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:bg-zinc-900/90 hover:text-zinc-100",
+                          ].join(" ")}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-zinc-300">
+                      Alignment
+                    </p>
+                    <div className="grid grid-cols-3 gap-2 text-[11px]">
+                      {(["left", "center", "right"] as TitleAlign[]).map(
+                        (align) => {
+                          const isActive = titleAlign === align;
+                          const label =
+                            align === "left"
+                              ? "Left"
+                              : align === "right"
+                              ? "Right"
+                              : "Center";
+                          return (
+                            <button
+                              key={align}
+                              type="button"
+                              onClick={() => handleTitleAlignChange(align)}
+                              className={[
+                                "rounded-lg border px-2 py-1.5 text-center transition",
+                                isActive
+                                  ? "border-zinc-100 bg-zinc-100 text-zinc-900"
+                                  : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:bg-zinc-900/90 hover:text-zinc-100",
+                              ].join(" ")}
+                            >
+                              {label}
+                            </button>
+                          );
+                        },
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <p className="text-xs font-medium text-zinc-300">
+                      Text color
+                    </p>
+                    <div className="flex gap-2">
+                      {(["white", "black", "accent"] as TitleColor[]).map(
+                        (color) => {
+                          const isActive = titleColor === color;
+                          const label =
+                            color === "white"
+                              ? "Light"
+                              : color === "black"
+                              ? "Dark"
+                              : "Accent";
+                          const swatchClass =
+                            color === "white"
+                              ? "bg-zinc-50"
+                              : color === "black"
+                              ? "bg-zinc-900"
+                              : "bg-emerald-400";
+                          return (
+                            <button
+                              key={color}
+                              type="button"
+                              onClick={() => handleTitleColorChange(color)}
+                              className={[
+                                "flex flex-1 items-center gap-2 rounded-lg border px-2 py-1.5 text-[11px] transition",
+                                isActive
+                                  ? "border-zinc-100 bg-zinc-100 text-zinc-900"
+                                  : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:bg-zinc-900/90 hover:text-zinc-100",
+                              ].join(" ")}
+                            >
+                              <span
+                                className={[
+                                  "h-3 w-3 rounded-full border border-zinc-700",
+                                  swatchClass,
+                                ].join(" ")}
+                              />
+                              <span>{label}</span>
+                            </button>
+                          );
+                        },
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 text-[11px] text-zinc-400">
+                    <p className="text-xs font-medium text-zinc-300">
+                      Hints
+                    </p>
+                    <p>
+                      Use line breaks to create multi-line titles and drag the
+                      pill on the canvas to position it.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
@@ -1033,6 +1401,41 @@ export default function Home() {
           </aside>
         </section>
       </div>
+      {isResetDialogOpen && (
+        <div
+          className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 px-4"
+          onClick={handleCancelReset}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl border border-zinc-800 bg-zinc-950 px-4 py-4 shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="text-sm font-medium text-zinc-100">
+              Reset workspace?
+            </p>
+            <p className="mt-1 text-xs text-zinc-400">
+              This will remove the current image, title, crop, and export
+              settings and return you to a blank canvas.
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={handleCancelReset}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 shadow-sm shadow-black/30 transition hover:border-zinc-500 hover:bg-zinc-900/80"
+              >
+                <span>Cancel</span>
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReset}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/70 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-200 shadow-sm shadow-black/40 transition hover:border-red-400 hover:bg-red-500/20"
+              >
+                <span>Reset</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
