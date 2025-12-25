@@ -618,7 +618,7 @@ export default function Home() {
   }
 
   const previewBaseClassName =
-    "relative flex h-[480px] w-full max-w-3xl items-center justify-center overflow-hidden";
+    "relative flex h-[320px] sm:h-[400px] lg:h-[480px] w-full max-w-3xl items-center justify-center overflow-hidden";
   const previewClassName = imageUrl
     ? previewBaseClassName
     : [
@@ -631,8 +631,8 @@ export default function Home() {
         .join(" ");
 
   return (
-    <main className="flex min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-950 to-zinc-900 text-zinc-50">
-      <aside className="flex w-64 flex-col border-r border-zinc-800/80 bg-zinc-950/80 px-4 py-5 backdrop-blur">
+    <main className="flex min-h-screen flex-col md:flex-row bg-gradient-to-br from-zinc-950 via-zinc-950 to-zinc-900 text-zinc-50">
+      <aside className="order-2 md:order-1 flex w-full md:w-64 flex-col border-b md:border-b-0 md:border-r border-zinc-800/80 bg-zinc-950/80 px-3 py-3 sm:px-4 sm:py-5 backdrop-blur">
         <div className="flex items-center gap-2 px-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-zinc-100 to-zinc-300 text-zinc-900 shadow shadow-black/40">
             <span className="text-sm font-bold tracking-tight">IE</span>
@@ -678,9 +678,9 @@ export default function Home() {
         </div>
       </aside>
 
-      <div className="flex flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-zinc-800/80 bg-zinc-950/80 px-8 py-4 backdrop-blur">
-          <div className="flex items-center gap-3">
+      <div className="order-1 md:order-2 flex flex-1 flex-col">
+        <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-800/80 bg-zinc-950/80 px-4 py-3 sm:px-6 sm:py-4 lg:px-8 backdrop-blur">
+          <div className="flex items-center gap-2 sm:gap-3">
             <div className="rounded-full border border-zinc-800/90 bg-zinc-900/80 px-3 py-1.5 text-xs font-medium text-zinc-300">
               Canvas
             </div>
@@ -689,7 +689,7 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-start gap-2 sm:justify-end sm:gap-3">
             <label className="relative inline-flex cursor-pointer items-center overflow-hidden rounded-lg border border-zinc-700/80 bg-zinc-900/80 px-3 py-1.5 text-xs font-medium text-zinc-200 shadow-sm shadow-black/30 transition hover:border-zinc-500 hover:bg-zinc-900">
               <span className="mr-2 flex h-5 w-5 items-center justify-center rounded-md bg-zinc-800 text-[11px] text-zinc-100">
                 ↑
@@ -744,7 +744,7 @@ export default function Home() {
           </div>
         )}
 
-        <section className="flex flex-1 gap-6 px-8 py-6">
+        <section className="flex flex-1 flex-col gap-6 px-4 py-4 sm:px-6 sm:py-6 lg:flex-row lg:px-8">
           <div className="flex flex-1 items-center justify-center">
             <div
               ref={previewRef}
@@ -872,7 +872,7 @@ export default function Home() {
             </div>
           </div>
 
-          <aside className="flex w-80 flex-col gap-4 rounded-2xl border border-zinc-800/80 bg-zinc-950/80 p-4 shadow-[0_18px_45px_rgba(0,0,0,0.75)]">
+          <aside className="mt-4 w-full lg:mt-0 lg:w-80 flex flex-col gap-4 rounded-2xl border border-zinc-800/80 bg-zinc-950/80 p-4 shadow-[0_18px_45px_rgba(0,0,0,0.75)]">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
                 {activeTool ? (activeTool === "crop" ? "Crop" : "Title") : "Tools"}
