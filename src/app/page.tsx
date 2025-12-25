@@ -1,6 +1,6 @@
 "use client";
 
-import type { ChangeEvent, ReactNode } from "react";
+import type { ChangeEvent, DragEvent, ReactNode } from "react";
 import { useRef, useState } from "react";
 
 type ToolId = "crop" | "title" | null;
@@ -88,8 +88,10 @@ export default function Home() {
     useState<EditorSnapshot | null>(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
 
   const previewRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const dragModeRef = useRef<"title" | "crop-move" | "crop-resize" | null>(
     null,
   );
@@ -163,14 +165,47 @@ export default function Home() {
     setBannerMessage("All changes saved.");
   }
 
+  function handlePreviewDragOver(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  }
+
+  function handlePreviewDragEnter(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    if (
+      event.dataTransfer &&
+      Array.from(event.dataTransfer.types).includes("Files")
+    ) {
+      setIsDraggingFile(true);
+    }
+  }
+
+  function handlePreviewDragLeave(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const related = event.relatedTarget as Node | null;
+    if (!related || !event.currentTarget.contains(related)) {
+      setIsDraggingFile(false);
+    }
+  }
+
+  function handlePreviewDrop(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    setIsDraggingFile(false);
+    const files = event.dataTransfer?.files;
+    if (!files || !files.length) {
+      return;
+    }
+    const file = files[0];
+    loadFile(file);
+  }
+
   function baseNameFromFileName(name: string) {
     const lastDot = name.lastIndexOf(".");
     if (lastDot <= 0) return name;
     return name.slice(0, lastDot);
   }
 
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
+  function loadFile(file: File | null | undefined) {
     if (!file) {
       setImageUrl(null);
       setOriginalFileName(null);
@@ -179,6 +214,10 @@ export default function Home() {
       setLastSavedSnapshot(null);
       setHasUnsavedChanges(false);
       setBannerMessage(null);
+      return;
+    }
+    if (file.type && !file.type.startsWith("image/")) {
+      setBannerMessage("Please upload an image file.");
       return;
     }
     setHistory([]);
@@ -194,6 +233,11 @@ export default function Home() {
       x: 0.5,
       y: 0.82,
     });
+  }
+
+  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    loadFile(file);
   }
 
   function handleDownloadNameChange(event: ChangeEvent<HTMLInputElement>) {
@@ -579,8 +623,12 @@ export default function Home() {
     ? previewBaseClassName
     : [
         previewBaseClassName,
-        "rounded-2xl border border-zinc-800/80 bg-[radial-gradient(circle_at_top,_rgba(250,250,250,0.08),transparent_55%),radial-gradient(circle_at_bottom,_rgba(24,24,27,0.9),#020617)] shadow-[0_18px_45px_rgba(0,0,0,0.7)]",
-      ].join(" ");
+        "cursor-pointer rounded-2xl border border-zinc-800/80 bg-[radial-gradient(circle_at_top,_rgba(250,250,250,0.08),transparent_55%),radial-gradient(circle_at_bottom,_rgba(24,24,27,0.9),#020617)] shadow-[0_18px_45px_rgba(0,0,0,0.7)]",
+        isDraggingFile &&
+          "border-emerald-400/80 shadow-[0_0_0_1px_rgba(52,211,153,0.7)]",
+      ]
+        .filter(Boolean)
+        .join(" ");
 
   return (
     <main className="flex min-h-screen bg-gradient-to-br from-zinc-950 via-zinc-950 to-zinc-900 text-zinc-50">
@@ -648,6 +696,7 @@ export default function Home() {
               </span>
               <span>Upload image</span>
               <input
+                ref={fileInputRef}
                 type="file"
                 accept="image/*"
                 onChange={handleFileChange}
@@ -700,9 +749,18 @@ export default function Home() {
             <div
               ref={previewRef}
               className={previewClassName}
+              onDragOver={handlePreviewDragOver}
+              onDragEnter={handlePreviewDragEnter}
+              onDragLeave={handlePreviewDragLeave}
+              onDrop={handlePreviewDrop}
               onPointerMove={handlePreviewPointerMove}
               onPointerUp={handlePreviewPointerUp}
               onPointerLeave={handlePreviewPointerUp}
+              onClick={() => {
+                if (!imageUrl) {
+                  fileInputRef.current?.click();
+                }
+              }}
             >
               {imageUrl ? (
                 <div className="relative flex h-full w-full items-center justify-center">
