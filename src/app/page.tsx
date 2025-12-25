@@ -3,9 +3,20 @@
 import type { ChangeEvent, ReactNode } from "react";
 import { useRef, useState } from "react";
 
-type ToolId = "crop" | "title";
+type ToolId = "crop" | "title" | null;
 
 type TitlePreset = "medium" | "center" | "overlay";
+
+type DownloadFormat = "png" | "jpeg";
+
+type EditorSnapshot = {
+  title: string;
+  titlePreset: TitlePreset;
+  titlePosition: NormalizedPoint;
+  cropRect: NormalizedRect | null;
+  downloadName: string;
+  downloadFormat: DownloadFormat;
+};
 
 type NormalizedPoint = {
   x: number;
@@ -60,14 +71,23 @@ function ToolButton({
 
 export default function Home() {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [originalFileName, setOriginalFileName] = useState<string | null>(null);
+  const [downloadName, setDownloadName] = useState("");
+  const [downloadFormat, setDownloadFormat] =
+    useState<DownloadFormat>("png");
   const [title, setTitle] = useState("");
-  const [activeTool, setActiveTool] = useState<ToolId>("title");
+  const [activeTool, setActiveTool] = useState<ToolId>(null);
   const [titlePreset, setTitlePreset] = useState<TitlePreset>("medium");
   const [titlePosition, setTitlePosition] = useState<NormalizedPoint>({
     x: 0.5,
     y: 0.82,
   });
   const [cropRect, setCropRect] = useState<NormalizedRect | null>(null);
+  const [history, setHistory] = useState<EditorSnapshot[]>([]);
+  const [lastSavedSnapshot, setLastSavedSnapshot] =
+    useState<EditorSnapshot | null>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [bannerMessage, setBannerMessage] = useState<string | null>(null);
 
   const previewRef = useRef<HTMLDivElement | null>(null);
   const dragModeRef = useRef<"title" | "crop-move" | "crop-resize" | null>(
@@ -78,14 +98,97 @@ export default function Home() {
   const dragStartTitleRef = useRef<NormalizedPoint | null>(null);
   const dragStartCropRef = useRef<NormalizedRect | null>(null);
 
+  function createSnapshot(): EditorSnapshot {
+    return {
+      title,
+      titlePreset,
+      titlePosition,
+      cropRect,
+      downloadName,
+      downloadFormat,
+    };
+  }
+
+  function applySnapshot(snapshot: EditorSnapshot) {
+    setTitle(snapshot.title);
+    setTitlePreset(snapshot.titlePreset);
+    setTitlePosition(snapshot.titlePosition);
+    setCropRect(snapshot.cropRect);
+    setDownloadName(snapshot.downloadName);
+    setDownloadFormat(snapshot.downloadFormat);
+  }
+
+  function pushHistory() {
+    const snapshot = createSnapshot();
+    setHistory((prev) => {
+      const next = [...prev, snapshot];
+      if (next.length > 50) {
+        next.shift();
+      }
+      return next;
+    });
+    setHasUnsavedChanges(true);
+    setBannerMessage(null);
+  }
+
+  function handleUndo() {
+    setHistory((prev) => {
+      if (!prev.length) {
+        return prev;
+      }
+      const next = prev.slice(0, prev.length - 1);
+      const snapshot = prev[prev.length - 1];
+      applySnapshot(snapshot);
+      if (
+        lastSavedSnapshot &&
+        JSON.stringify(snapshot) === JSON.stringify(lastSavedSnapshot)
+      ) {
+        setHasUnsavedChanges(false);
+      } else {
+        setHasUnsavedChanges(true);
+      }
+      setBannerMessage(null);
+      return next;
+    });
+  }
+
+  function handleSave() {
+    if (!imageUrl) {
+      setBannerMessage("Upload an image before saving.");
+      return;
+    }
+    const snapshot = createSnapshot();
+    setLastSavedSnapshot(snapshot);
+    setHasUnsavedChanges(false);
+    setBannerMessage("All changes saved.");
+  }
+
+  function baseNameFromFileName(name: string) {
+    const lastDot = name.lastIndexOf(".");
+    if (lastDot <= 0) return name;
+    return name.slice(0, lastDot);
+  }
+
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) {
       setImageUrl(null);
+      setOriginalFileName(null);
+      setDownloadName("");
+      setHistory([]);
+      setLastSavedSnapshot(null);
+      setHasUnsavedChanges(false);
+      setBannerMessage(null);
       return;
     }
+    setHistory([]);
+    setLastSavedSnapshot(null);
+    setHasUnsavedChanges(false);
+    setBannerMessage(null);
     const url = URL.createObjectURL(file);
     setImageUrl(url);
+    setOriginalFileName(file.name);
+    setDownloadName(baseNameFromFileName(file.name));
     setCropRect(null);
     setTitlePosition({
       x: 0.5,
@@ -93,11 +196,29 @@ export default function Home() {
     });
   }
 
+  function handleDownloadNameChange(event: ChangeEvent<HTMLInputElement>) {
+    pushHistory();
+    setDownloadName(event.target.value);
+  }
+
+  function handleDownloadFormatChange(format: DownloadFormat) {
+    if (format === downloadFormat) {
+      return;
+    }
+    pushHistory();
+    setDownloadFormat(format);
+  }
+
   function handleTitleChange(event: ChangeEvent<HTMLInputElement>) {
+    pushHistory();
     setTitle(event.target.value);
   }
 
   function handleTitlePresetChange(next: TitlePreset) {
+    if (next === titlePreset) {
+      return;
+    }
+    pushHistory();
     setTitlePreset(next);
   }
 
@@ -105,6 +226,7 @@ export default function Home() {
     if (!previewRef.current) {
       return;
     }
+    pushHistory();
     setActiveTool("title");
     dragModeRef.current = "title";
     dragHandleRef.current = null;
@@ -122,6 +244,7 @@ export default function Home() {
     if (!previewRef.current || !cropRect) {
       return;
     }
+    pushHistory();
     setActiveTool("crop");
     dragStartPointerRef.current = { x: event.clientX, y: event.clientY };
     dragStartCropRef.current = cropRect;
@@ -139,6 +262,7 @@ export default function Home() {
 
   function handleCropPreset(aspect: "1:1" | "4:5" | "16:9") {
     if (!cropRect) {
+      pushHistory();
       setCropRect({
         x: 0.08,
         y: 0.08,
@@ -147,6 +271,7 @@ export default function Home() {
       });
       return;
     }
+    pushHistory();
     const centerX = cropRect.x + cropRect.width / 2;
     const centerY = cropRect.y + cropRect.height / 2;
     let width = cropRect.width;
@@ -295,6 +420,11 @@ export default function Home() {
       return;
     }
 
+    if (hasUnsavedChanges) {
+      setBannerMessage("You have unsaved changes. Save before downloading.");
+      return;
+    }
+
     const image = new Image();
     image.src = imageUrl;
 
@@ -390,16 +520,20 @@ export default function Home() {
         const cropHeight = clamp(cropRect.height, 0.01, 1);
         const withinX = (centerX - cropX) / cropWidth;
         const withinY = (centerY - cropY) / cropHeight;
-        if (
-          withinX < 0 ||
-          withinX > 1 ||
-          withinY < 0 ||
-          withinY > 1
-        ) {
-          canvas.toDataURL();
+        if (withinX < 0 || withinX > 1 || withinY < 0 || withinY > 1) {
+          context.fillStyle = "#000000";
+          context.fillRect(0, 0, sourceWidth, sourceHeight);
+          const baseFromOriginal = originalFileName
+            ? baseNameFromFileName(originalFileName)
+            : "edited-image";
+          const finalBaseName =
+            downloadName.trim() !== "" ? downloadName.trim() : baseFromOriginal;
+          const mimeType =
+            downloadFormat === "jpeg" ? "image/jpeg" : "image/png";
+          const extension = downloadFormat === "jpeg" ? "jpg" : "png";
           const link = document.createElement("a");
-          link.href = canvas.toDataURL("image/png");
-          link.download = "edited-image.png";
+          link.href = canvas.toDataURL(mimeType);
+          link.download = `${finalBaseName}.${extension}`;
           link.click();
           return;
         }
@@ -424,9 +558,18 @@ export default function Home() {
       context.fillText(trimmedTitle, textX, textY);
     }
 
+    const baseFromOriginal = originalFileName
+      ? baseNameFromFileName(originalFileName)
+      : "edited-image";
+    const finalBaseName =
+      downloadName.trim() !== "" ? downloadName.trim() : baseFromOriginal;
+
+    const mimeType = downloadFormat === "jpeg" ? "image/jpeg" : "image/png";
+    const extension = downloadFormat === "jpeg" ? "jpg" : "png";
+
     const link = document.createElement("a");
-    link.href = canvas.toDataURL("image/png");
-    link.download = "edited-image.png";
+    link.href = canvas.toDataURL(mimeType);
+    link.download = `${finalBaseName}.${extension}`;
     link.click();
   }
 
@@ -514,6 +657,26 @@ export default function Home() {
 
             <button
               type="button"
+              onClick={handleUndo}
+              disabled={!history.length}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 shadow-sm shadow-black/30 transition hover:border-zinc-600 hover:bg-zinc-900/80 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span className="text-[11px]">↺</span>
+              <span>Undo</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!imageUrl || !hasUnsavedChanges}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/60 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-300 shadow-sm shadow-black/30 transition hover:border-emerald-400 hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-zinc-900 disabled:text-zinc-500"
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              <span>Save</span>
+            </button>
+
+            <button
+              type="button"
               onClick={handleDownload}
               disabled={!imageUrl}
               className="inline-flex items-center gap-2 rounded-lg bg-zinc-100 px-3.5 py-1.5 text-xs font-semibold text-zinc-900 shadow-sm shadow-black/30 transition hover:bg-zinc-200 disabled:cursor-not-allowed disabled:bg-zinc-800 disabled:text-zinc-500"
@@ -525,6 +688,12 @@ export default function Home() {
             </button>
           </div>
         </header>
+
+        {bannerMessage && (
+          <div className="border-b border-zinc-800/80 bg-zinc-900/80 px-8 py-2 text-xs text-zinc-300">
+            {bannerMessage}
+          </div>
+        )}
 
         <section className="flex flex-1 gap-6 px-8 py-6">
           <div className="flex flex-1 items-center justify-center">
@@ -648,7 +817,7 @@ export default function Home() {
           <aside className="flex w-80 flex-col gap-4 rounded-2xl border border-zinc-800/80 bg-zinc-950/80 p-4 shadow-[0_18px_45px_rgba(0,0,0,0.75)]">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
-                {activeTool === "crop" ? "Crop" : "Title"}
+                {activeTool ? (activeTool === "crop" ? "Crop" : "Title") : "Tools"}
               </p>
               <span className="rounded-full bg-zinc-900 px-2 py-0.5 text-[10px] font-medium text-zinc-400">
                 Basic tools
@@ -715,8 +884,7 @@ export default function Home() {
               <div className="space-y-4 text-xs text-zinc-400">
                 <p>
                   Crop controls will let you focus on the most important part of
-                  your image. You will be able to adjust the visible region
-                  directly on the canvas.
+                  your image. Adjust the visible region directly on the canvas.
                 </p>
                 <div className="grid grid-cols-3 gap-2">
                   <button
@@ -741,12 +909,69 @@ export default function Home() {
                     16:9
                   </button>
                 </div>
-                <p className="text-[11px]">
-                  For now, use the full image. Cropping logic will be wired into
-                  this panel next.
-                </p>
               </div>
             )}
+
+            <div className="mt-2 space-y-3 border-t border-zinc-800/80 pt-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
+                  Export
+                </p>
+                <span className="text-[10px] text-zinc-500">
+                  {downloadFormat === "png" ? "PNG" : "JPG"}
+                </span>
+              </div>
+              <div className="space-y-2">
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-zinc-300">
+                    File name
+                  </p>
+                  <input
+                    type="text"
+                    value={downloadName}
+                    onChange={handleDownloadNameChange}
+                    placeholder={
+                      originalFileName
+                        ? baseNameFromFileName(originalFileName)
+                        : "edited-image"
+                    }
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-xs text-zinc-50 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 focus:ring-offset-2 focus:ring-offset-zinc-950"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <p className="text-xs font-medium text-zinc-300">
+                    Format
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                    {(["png", "jpeg"] as DownloadFormat[]).map((format) => {
+                      const isActive = downloadFormat === format;
+                      const label = format === "png" ? "PNG" : "JPG";
+                      return (
+                        <button
+                          key={format}
+                          type="button"
+                          onClick={() => handleDownloadFormatChange(format)}
+                          className={[
+                            "rounded-lg border px-2 py-1.5 text-center transition",
+                            isActive
+                              ? "border-zinc-100 bg-zinc-100 text-zinc-900"
+                              : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:bg-zinc-900/90 hover:text-zinc-100",
+                          ].join(" ")}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <p className="text-[11px] text-zinc-500">
+                  PNG keeps transparency and crisp text. JPG is smaller and good
+                  for photos.
+                </p>
+              </div>
+            </div>
           </aside>
         </section>
       </div>
