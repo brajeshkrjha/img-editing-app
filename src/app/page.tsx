@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangeEvent, DragEvent, PointerEvent } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type {
   DownloadFormat,
@@ -34,7 +34,7 @@ function clamp(value: number, min: number, max: number) {
   return value;
 }
 
-export default function Home() {
+function HomeInner() {
   const searchParams = useSearchParams();
   const sharedSessionId = searchParams.get("session");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -969,5 +969,13 @@ export default function Home() {
         </div>
       )}
     </main>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeInner />
+    </Suspense>
   );
 }

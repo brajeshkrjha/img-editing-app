@@ -9,20 +9,24 @@ type SessionListItem = {
 };
 
 async function loadSessions(): Promise<SessionListItem[]> {
-  const db = await getDb();
-  const collection = db.collection("sessions");
-  const docs = await collection
-    .find({ isPublic: true })
-    .sort({ createdAt: -1 })
-    .limit(24)
-    .toArray();
-  return docs.map((doc) => ({
-    _id: doc._id.toString(),
-    imageDataUrl: doc.imageDataUrl as string,
-    originalFileName:
-      (doc.originalFileName as string | null | undefined) ?? null,
-    createdAt: (doc.createdAt as Date).toISOString(),
-  }));
+  try {
+    const db = await getDb();
+    const collection = db.collection("sessions");
+    const docs = await collection
+      .find({ isPublic: true })
+      .sort({ createdAt: -1 })
+      .limit(24)
+      .toArray();
+    return docs.map((doc) => ({
+      _id: doc._id.toString(),
+      imageDataUrl: doc.imageDataUrl as string,
+      originalFileName:
+        (doc.originalFileName as string | null | undefined) ?? null,
+      createdAt: (doc.createdAt as Date).toISOString(),
+    }));
+  } catch {
+    return [];
+  }
 }
 
 export default async function GalleryPage() {
@@ -74,4 +78,3 @@ export default async function GalleryPage() {
     </main>
   );
 }
-
