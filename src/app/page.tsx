@@ -796,7 +796,7 @@ function HomeInner() {
 
     const baseFromOriginal = originalFileName
       ? baseNameFromFileName(originalFileName)
-      : "edited-image";
+      : "citraport-image";
     const finalBaseName =
       downloadName.trim() !== "" ? downloadName.trim() : baseFromOriginal;
 
@@ -820,11 +820,21 @@ function HomeInner() {
     );
 
   const downloadNamePlaceholder =
-    originalFileName ? baseNameFromFileName(originalFileName) : "edited-image";
+    originalFileName ? baseNameFromFileName(originalFileName) : "citraport-image";
+
+  const mobileTools: { id: ToolId; label: string; icon: string }[] = [
+    { id: "crop", label: "Crop", icon: "▢" },
+    { id: "title", label: "Title", icon: "T" },
+  ];
 
   return (
-    <main className="flex min-h-screen flex-col md:flex-row bg-gradient-to-br from-zinc-950 via-zinc-950 to-zinc-900 text-zinc-50">
-      <ToolSidebar activeTool={activeTool} onToolChange={setActiveTool} />
+    <main className="relative flex min-h-screen flex-col md:flex-row bg-[radial-gradient(circle_at_top,_rgba(244,244,245,0.05),transparent_55%),radial-gradient(circle_at_bottom,_rgba(16,185,129,0.16),#020617)] text-zinc-50 pb-24 md:pb-0">
+      <ToolSidebar
+        activeTool={activeTool}
+        onToolChange={(tool) => {
+          setActiveTool(tool);
+        }}
+      />
 
       <div className="order-1 md:order-2 flex flex-1 flex-col">
         <EditorHeader
@@ -928,6 +938,40 @@ function HomeInner() {
           </div>
         </div>
       )}
+
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-zinc-800 bg-zinc-950 px-3 py-3.5 shadow-[0_-18px_45px_rgba(0,0,0,0.9)] md:hidden">
+        <div className="mx-auto flex max-w-3xl items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="h-1 w-6 rounded-full bg-zinc-700/80" />
+            <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-zinc-500">
+              Tools
+            </span>
+          </div>
+          <div className="ml-auto flex gap-2 overflow-x-auto pb-1">
+            {mobileTools.map((tool) => {
+              const isActive = activeTool === tool.id;
+              return (
+                <button
+                  key={tool.id}
+                  type="button"
+                  onClick={() => setActiveTool(tool.id)}
+                  className={[
+                    "inline-flex items-center gap-2 rounded-full px-3.5 py-2 text-[11px] font-medium transition-colors",
+                    isActive
+                      ? "bg-zinc-100 text-zinc-900 shadow-sm shadow-black/40"
+                      : "bg-zinc-900 text-zinc-300 border border-zinc-800 hover:border-zinc-600 hover:text-zinc-50",
+                  ].join(" ")}
+                >
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-zinc-800 text-[11px] text-zinc-100">
+                    {tool.icon}
+                  </span>
+                  <span>{tool.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
     </main>
   );
 }

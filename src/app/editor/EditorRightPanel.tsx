@@ -55,7 +55,7 @@ export function EditorRightPanel({
   onDownloadFormatChange,
 }: EditorRightPanelProps) {
   return (
-    <aside className="mt-4 w-full lg:mt-0 lg:w-80 flex flex-col gap-4 rounded-2xl border border-zinc-800/80 bg-zinc-950/80 p-4 shadow-[0_18px_45px_rgba(0,0,0,0.75)]">
+    <aside className="mt-4 w-full lg:mt-0 lg:w-80 flex flex-col gap-4 rounded-2xl border border-zinc-800/80 bg-gradient-to-b from-zinc-950/95 via-zinc-950/85 to-black/85 p-4 shadow-[0_24px_70px_rgba(0,0,0,0.9)]">
       <div className="flex items-center justify-between">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-zinc-500">
           {activeTool ? (activeTool === "crop" ? "Crop" : "Title") : "Tools"}
@@ -96,9 +96,9 @@ export function EditorRightPanel({
                     type="button"
                     onClick={() => onTitlePresetChange(preset)}
                     className={[
-                      "rounded-lg border px-2 py-1.5 text-center transition",
+                      "rounded-lg border px-2 py-1.5 text-center text-[11px] transition-all duration-150",
                       isActive
-                        ? "border-zinc-100 bg-zinc-100 text-zinc-900"
+                        ? "border-zinc-100/90 bg-zinc-100 text-zinc-900 shadow-sm shadow-black/30"
                         : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:bg-zinc-900/90 hover:text-zinc-100",
                     ].join(" ")}
                   >
@@ -148,9 +148,9 @@ export function EditorRightPanel({
                     type="button"
                     onClick={() => onTitleWeightChange(weight)}
                     className={[
-                      "rounded-lg border px-2 py-1.5 text-center transition",
+                      "rounded-lg border px-2 py-1.5 text-center text-[11px] transition-all duration-150",
                       isActive
-                        ? "border-zinc-100 bg-zinc-100 text-zinc-900"
+                        ? "border-zinc-100/90 bg-zinc-100 text-zinc-900 shadow-sm shadow-black/30"
                         : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:bg-zinc-900/90 hover:text-zinc-100",
                     ].join(" ")}
                   >
@@ -220,9 +220,9 @@ export function EditorRightPanel({
                         type="button"
                         onClick={() => onTitleColorChange(color)}
                         className={[
-                          "flex flex-1 items-center gap-2 rounded-lg border px-2 py-1.5 text-[11px] transition",
+                          "flex flex-1 items-center gap-2 rounded-lg border px-2 py-1.5 text-[11px] transition-all duration-150",
                           isActive
-                            ? "border-zinc-100 bg-zinc-100 text-zinc-900"
+                            ? "border-zinc-100/90 bg-zinc-100 text-zinc-900 shadow-sm shadow-black/30"
                             : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:bg-zinc-900/90 hover:text-zinc-100",
                         ].join(" ")}
                       >
@@ -263,21 +263,21 @@ export function EditorRightPanel({
             <button
               type="button"
               onClick={() => onCropPresetChange("1:1")}
-              className="rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-center text-zinc-400 transition hover:border-zinc-600 hover:bg-zinc-900/90 hover:text-zinc-100"
+              className="rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-center text-zinc-400 transition-all duration-150 hover:border-zinc-600 hover:bg-zinc-900/90 hover:text-zinc-100"
             >
               1:1
             </button>
             <button
               type="button"
               onClick={() => onCropPresetChange("4:5")}
-              className="rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-center text-zinc-400 transition hover:border-zinc-600 hover:bg-zinc-900/90 hover:text-zinc-100"
+              className="rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-center text-zinc-400 transition-all duration-150 hover:border-zinc-600 hover:bg-zinc-900/90 hover:text-zinc-100"
             >
               4:5
             </button>
             <button
               type="button"
               onClick={() => onCropPresetChange("16:9")}
-              className="rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-center text-zinc-400 transition hover:border-zinc-600 hover:bg-zinc-900/90 hover:text-zinc-100"
+              className="rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1.5 text-center text-zinc-400 transition-all duration-150 hover:border-zinc-600 hover:bg-zinc-900/90 hover:text-zinc-100"
             >
               16:9
             </button>
@@ -322,9 +322,9 @@ export function EditorRightPanel({
                     type="button"
                     onClick={() => onDownloadFormatChange(format)}
                     className={[
-                      "rounded-lg border px-2 py-1.5 text-center transition",
+                      "rounded-lg border px-2 py-1.5 text-center text-[11px] transition-all duration-150",
                       isActive
-                        ? "border-zinc-100 bg-zinc-100 text-zinc-900"
+                        ? "border-zinc-100/90 bg-zinc-100 text-zinc-900 shadow-sm shadow-black/30"
                         : "border-zinc-800 bg-zinc-900 text-zinc-400 hover:border-zinc-600 hover:bg-zinc-900/90 hover:text-zinc-100",
                     ].join(" ")}
                   >

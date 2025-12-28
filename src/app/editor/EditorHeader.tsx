@@ -30,11 +30,11 @@ export function EditorHeader({
   return (
     <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-800/80 bg-zinc-950/80 px-4 py-3 sm:px-6 sm:py-4 lg:px-8 backdrop-blur">
       <div className="flex items-center gap-2 sm:gap-3">
-        <div className="rounded-full border border-zinc-800/90 bg-zinc-900/80 px-3 py-1.5 text-xs font-medium text-zinc-300">
-          Canvas
+        <div className="rounded-full border border-zinc-800/90 bg-zinc-900/80 px-3 py-1.5 text-[11px] font-semibold tracking-[0.18em] text-zinc-200 uppercase">
+          CITRAPORT
         </div>
         <p className="text-xs text-zinc-500">
-          Upload an image and start editing.
+          Upload an image, refine the frame, and export a clean shot.
         </p>
       </div>
 

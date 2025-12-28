@@ -64,12 +64,12 @@ export function EditorCanvas({
   onCropPointerDown,
 }: EditorCanvasProps) {
   const previewBaseClassName =
-    "relative flex h-[320px] sm:h-[400px] lg:h-[480px] w-full max-w-3xl items-center justify-center overflow-hidden";
+    "relative flex h-[320px] sm:h-[400px] lg:h-[480px] w-full max-w-3xl items-center justify-center overflow-hidden rounded-3xl border border-zinc-800/80 bg-zinc-950/70 shadow-[0_24px_70px_rgba(0,0,0,0.85)]";
   const previewClassName = imageUrl
     ? previewBaseClassName
     : [
         previewBaseClassName,
-        "cursor-pointer rounded-2xl border border-zinc-800/80 bg-[radial-gradient(circle_at_top,_rgba(250,250,250,0.08),transparent_55%),radial-gradient(circle_at_bottom,_rgba(24,24,27,0.9),#020617)] shadow-[0_18px_45px_rgba(0,0,0,0.7)]",
+        "cursor-pointer bg-[radial-gradient(circle_at_top,_rgba(250,250,250,0.08),transparent_55%),radial-gradient(circle_at_bottom,_rgba(24,24,27,0.9),#020617)] shadow-[0_26px_80px_rgba(0,0,0,0.95)]",
         isDraggingFile &&
           "border-emerald-400/80 shadow-[0_0_0_1px_rgba(52,211,153,0.7)]",
       ]
@@ -98,7 +98,7 @@ export function EditorCanvas({
           <div className="relative flex h-full w-full items-center justify-center">
             <img
               src={imageUrl}
-              alt="Preview"
+              alt="CITRAPORT editor preview"
               className="relative max-h-[360px] max-w-full rounded-xl object-contain shadow-[0_14px_40px_rgba(0,0,0,0.85)]"
             />
             {title.trim() && (
@@ -208,10 +208,10 @@ export function EditorCanvas({
             </div>
             <div className="space-y-1">
               <p className="text-sm font-medium text-zinc-100">
-                Drop an image to begin
+                Start a new CITRAPORT canvas
               </p>
               <p className="text-xs text-zinc-500">
-                Or use the Upload button in the top bar.
+                Drop an image here or use the Upload button in the top bar.
               </p>
             </div>
           </div>
