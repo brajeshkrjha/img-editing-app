@@ -1,3 +1,4 @@
+import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { connectToMongo } from "@/lib/mongodb";
@@ -15,11 +16,11 @@ type SessionDocument = {
 };
 
 export async function GET(
-  _request: Request,
-  context: { params: { id: string } },
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { id } = context.params;
+    const { id } = await context.params;
     if (!id || !ObjectId.isValid(id)) {
       return NextResponse.json({ error: "Invalid id" }, { status: 400 });
     }
@@ -45,4 +46,3 @@ export async function GET(
     );
   }
 }
-
