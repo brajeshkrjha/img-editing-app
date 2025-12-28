@@ -653,9 +653,18 @@ function HomeInner() {
       sourceHeight = Math.max(1, Math.round(cropHeight * height));
     }
 
+    let outputWidth = sourceWidth;
+    let outputHeight = sourceHeight;
+    const maxSide = Math.max(outputWidth, outputHeight);
+    if (maxSide > 2048) {
+      const scale = 2048 / maxSide;
+      outputWidth = Math.max(1, Math.round(outputWidth * scale));
+      outputHeight = Math.max(1, Math.round(outputHeight * scale));
+    }
+
     const canvas = document.createElement("canvas");
-    canvas.width = sourceWidth;
-    canvas.height = sourceHeight;
+    canvas.width = outputWidth;
+    canvas.height = outputHeight;
 
     const context = canvas.getContext("2d");
 
@@ -671,14 +680,14 @@ function HomeInner() {
       sourceHeight,
       0,
       0,
-      sourceWidth,
-      sourceHeight,
+      outputWidth,
+      outputHeight,
     );
 
     const trimmedTitle = title.trim();
 
     if (trimmedTitle) {
-      const base = Math.min(sourceWidth, sourceHeight);
+      const base = Math.min(outputWidth, outputHeight);
       let fontSize = Math.max(14, Math.round(base * 0.018));
 
       const presetMultiplier =
@@ -736,7 +745,7 @@ function HomeInner() {
         const withinY = (centerY - cropY) / cropHeight;
         if (withinX < 0 || withinX > 1 || withinY < 0 || withinY > 1) {
           context.fillStyle = "#000000";
-          context.fillRect(0, 0, sourceWidth, sourceHeight);
+          context.fillRect(0, 0, outputWidth, outputHeight);
           const baseFromOriginal = originalFileName
             ? baseNameFromFileName(originalFileName)
             : "edited-image";
@@ -745,8 +754,9 @@ function HomeInner() {
           const mimeType =
             downloadFormat === "jpeg" ? "image/jpeg" : "image/png";
           const extension = downloadFormat === "jpeg" ? "jpg" : "png";
+          const quality = downloadFormat === "jpeg" ? 0.9 : undefined;
           const link = document.createElement("a");
-          link.href = canvas.toDataURL(mimeType);
+          link.href = canvas.toDataURL(mimeType, quality);
           link.download = `${finalBaseName}.${extension}`;
           link.click();
           return;
@@ -755,8 +765,8 @@ function HomeInner() {
         centerY = clamp(withinY, 0.05, 0.95);
       }
 
-      const textX = centerX * sourceWidth;
-      const textY = centerY * sourceHeight;
+      const textX = centerX * outputWidth;
+      const textY = centerY * outputHeight;
 
       const boxX = textX - boxWidth / 2;
       const boxY = textY - boxHeight / 2;
@@ -792,60 +802,12 @@ function HomeInner() {
 
     const mimeType = downloadFormat === "jpeg" ? "image/jpeg" : "image/png";
     const extension = downloadFormat === "jpeg" ? "jpg" : "png";
+    const quality = downloadFormat === "jpeg" ? 0.9 : undefined;
 
     const link = document.createElement("a");
-    link.href = canvas.toDataURL(mimeType);
+    link.href = canvas.toDataURL(mimeType, quality);
     link.download = `${finalBaseName}.${extension}`;
     link.click();
-  }
-
-  async function handleShare() {
-    if (!imageUrl) {
-      setBannerMessage("Upload an image before sharing.");
-      return;
-    }
-    const snapshot = createSnapshot();
-    setBannerMessage("Creating share link...");
-    try {
-      const response = await fetch("/api/sessions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          imageDataUrl: imageUrl,
-          originalFileName,
-          snapshot,
-          isTemplate: false,
-          isPublic: true,
-        }),
-      });
-      if (!response.ok) {
-        setBannerMessage("Unable to create share link. Please try again.");
-        return;
-      }
-      const data = (await response.json()) as { id: string };
-      if (!data.id) {
-        setBannerMessage("Unable to create share link. Please try again.");
-        return;
-      }
-      const origin =
-        typeof window !== "undefined" && window.location
-          ? window.location.origin
-          : "";
-      const shareUrl = origin ? `${origin}?session=${data.id}` : `?session=${data.id}`;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        try {
-          await navigator.clipboard.writeText(shareUrl);
-          setBannerMessage("Share link copied to clipboard.");
-          return;
-        } catch {
-        }
-      }
-      setBannerMessage("Share link ready. Copy it from the address bar.");
-    } catch {
-      setBannerMessage("Unable to create share link. Please try again.");
-    }
   }
 
   const canReset =
@@ -875,8 +837,6 @@ function HomeInner() {
           hasHistory={history.length > 0}
           isSaveDisabled={!imageUrl || !hasUnsavedChanges}
           isDownloadDisabled={!imageUrl}
-          onShare={handleShare}
-          isShareDisabled={!imageUrl}
           fileInputRef={fileInputRef}
         />
 

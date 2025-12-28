@@ -12,8 +12,6 @@ type EditorHeaderProps = {
   hasHistory: boolean;
   isSaveDisabled: boolean;
   isDownloadDisabled: boolean;
-  onShare: () => void;
-  isShareDisabled: boolean;
   fileInputRef: RefObject<HTMLInputElement | null>;
 };
 
@@ -27,8 +25,6 @@ export function EditorHeader({
   hasHistory,
   isSaveDisabled,
   isDownloadDisabled,
-   onShare,
-   isShareDisabled,
   fileInputRef,
 }: EditorHeaderProps) {
   return (
@@ -85,16 +81,6 @@ export function EditorHeader({
         >
           <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
           <span>Save</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={onShare}
-          disabled={isShareDisabled}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 text-xs font-medium text-zinc-200 shadow-sm shadow-black/30 transition hover:border-zinc-600 hover:bg-zinc-900/80 disabled:cursor-not-allowed disabled:border-zinc-800 disabled:bg-zinc-900 disabled:text-zinc-500"
-        >
-          <span className="text-[11px]">⤴</span>
-          <span>Share</span>
         </button>
 
         <button
