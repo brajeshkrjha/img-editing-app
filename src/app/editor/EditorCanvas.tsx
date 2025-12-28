@@ -26,8 +26,8 @@ type EditorCanvasProps = {
   titleColor: TitleColor;
   cropRect: NormalizedRect | null;
   isDraggingFile: boolean;
-  previewRef: RefObject<HTMLDivElement>;
-  fileInputRef: RefObject<HTMLInputElement>;
+  previewRef: RefObject<HTMLDivElement | null>;
+  fileInputRef: RefObject<HTMLInputElement | null>;
   onPreviewDragOver: (event: DragEvent<HTMLDivElement>) => void;
   onPreviewDragEnter: (event: DragEvent<HTMLDivElement>) => void;
   onPreviewDragLeave: (event: DragEvent<HTMLDivElement>) => void;

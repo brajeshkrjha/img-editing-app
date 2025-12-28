@@ -24,3 +24,15 @@ export type NormalizedRect = {
   height: number;
 };
 
+export type EditorSnapshot = {
+  title: string;
+  titlePreset: TitlePreset;
+  titlePosition: NormalizedPoint;
+  cropRect: NormalizedRect | null;
+  downloadName: string;
+  downloadFormat: DownloadFormat;
+  titleSizeLevel: TitleSizeLevel;
+  titleWeight: TitleWeight;
+  titleColor: TitleColor;
+  titleAlign: TitleAlign;
+};

@@ -2,8 +2,10 @@
 
 import type { ChangeEvent, DragEvent, PointerEvent } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type {
   DownloadFormat,
+  EditorSnapshot,
   NormalizedPoint,
   NormalizedRect,
   TitleAlign,
@@ -17,19 +19,6 @@ import { ToolSidebar } from "./editor/ToolSidebar";
 import { EditorHeader } from "./editor/EditorHeader";
 import { EditorCanvas } from "./editor/EditorCanvas";
 import { EditorRightPanel } from "./editor/EditorRightPanel";
-
-type EditorSnapshot = {
-  title: string;
-  titlePreset: TitlePreset;
-  titlePosition: NormalizedPoint;
-  cropRect: NormalizedRect | null;
-  downloadName: string;
-  downloadFormat: DownloadFormat;
-  titleSizeLevel: TitleSizeLevel;
-  titleWeight: TitleWeight;
-  titleColor: TitleColor;
-  titleAlign: TitleAlign;
-};
 
 type PersistedSession = {
   imageDataUrl: string | null;
@@ -46,6 +35,8 @@ function clamp(value: number, min: number, max: number) {
 }
 
 export default function Home() {
+  const searchParams = useSearchParams();
+  const sharedSessionId = searchParams.get("session");
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [originalFileName, setOriginalFileName] = useState<string | null>(null);
   const [downloadName, setDownloadName] = useState("");
@@ -86,6 +77,48 @@ export default function Home() {
     if (typeof window === "undefined") {
       return;
     }
+    if (sharedSessionId) {
+      let cancelled = false;
+      const loadSharedSession = async () => {
+        try {
+          const response = await fetch(`/api/sessions/${sharedSessionId}`);
+          if (!response.ok) {
+            setHasHydratedSession(true);
+            return;
+          }
+          const data = (await response.json()) as {
+            imageDataUrl: string | null;
+            originalFileName: string | null;
+            snapshot: EditorSnapshot | null;
+          };
+          if (cancelled) {
+            return;
+          }
+          if (data.imageDataUrl) {
+            setImageUrl(data.imageDataUrl);
+          }
+          if (data.originalFileName) {
+            setOriginalFileName(data.originalFileName);
+          }
+          if (data.snapshot) {
+            applySnapshot(data.snapshot);
+            setLastSavedSnapshot(data.snapshot);
+          }
+          setHistory([]);
+          setHasUnsavedChanges(false);
+          setBannerMessage(null);
+        } catch {
+        } finally {
+          if (!cancelled) {
+            setHasHydratedSession(true);
+          }
+        }
+      };
+      loadSharedSession();
+      return () => {
+        cancelled = true;
+      };
+    }
     try {
       const raw = window.localStorage.getItem(PERSIST_KEY);
       if (!raw) {
@@ -110,7 +143,7 @@ export default function Home() {
     } finally {
       setHasHydratedSession(true);
     }
-  }, []);
+  }, [sharedSessionId]);
 
   const createSnapshot = useCallback(
     (): EditorSnapshot => ({
@@ -766,6 +799,55 @@ export default function Home() {
     link.click();
   }
 
+  async function handleShare() {
+    if (!imageUrl) {
+      setBannerMessage("Upload an image before sharing.");
+      return;
+    }
+    const snapshot = createSnapshot();
+    setBannerMessage("Creating share link...");
+    try {
+      const response = await fetch("/api/sessions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageDataUrl: imageUrl,
+          originalFileName,
+          snapshot,
+          isTemplate: false,
+          isPublic: true,
+        }),
+      });
+      if (!response.ok) {
+        setBannerMessage("Unable to create share link. Please try again.");
+        return;
+      }
+      const data = (await response.json()) as { id: string };
+      if (!data.id) {
+        setBannerMessage("Unable to create share link. Please try again.");
+        return;
+      }
+      const origin =
+        typeof window !== "undefined" && window.location
+          ? window.location.origin
+          : "";
+      const shareUrl = origin ? `${origin}?session=${data.id}` : `?session=${data.id}`;
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        try {
+          await navigator.clipboard.writeText(shareUrl);
+          setBannerMessage("Share link copied to clipboard.");
+          return;
+        } catch {
+        }
+      }
+      setBannerMessage("Share link ready. Copy it from the address bar.");
+    } catch {
+      setBannerMessage("Unable to create share link. Please try again.");
+    }
+  }
+
   const canReset =
     !!(
       imageUrl ||
@@ -793,6 +875,8 @@ export default function Home() {
           hasHistory={history.length > 0}
           isSaveDisabled={!imageUrl || !hasUnsavedChanges}
           isDownloadDisabled={!imageUrl}
+          onShare={handleShare}
+          isShareDisabled={!imageUrl}
           fileInputRef={fileInputRef}
         />
 
